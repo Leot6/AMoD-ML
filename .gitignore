@@ -1,0 +1,30 @@
+
+# Visual Studio files
+.vs
+.vscode
+*.sdf
+*.opensdf
+*.VC.opendb
+*.suo
+*.user
+_ReSharper.Caches/
+Win32-Debug/
+Win32-Release/
+x64-Debug/
+x64-Release/
+
+# Pycharm files
+__pycache__/
+
+# macOS files
+.DS_Store
+
+
+# large data file
+datalog-gitignore/
+media-gitignore/
+*.csv
+
+# others
+.idea
+test_gitignore.py
