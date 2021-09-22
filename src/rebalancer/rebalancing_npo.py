@@ -21,6 +21,8 @@ def reposition_idle_vehicles_to_nearest_pending_orders(orders: list[Order],
         print(f"        -Repositioning {num_of_idle_vehicles} idle vehicles to "
               f"{len(pending_order_ids)} locations through NPO...")
 
+    print(f"            +11 ({timer_end(t)})")
+
     # 2. Compute all rebalancing candidates.
     rebalancing_candidates = []
     for order_id in pending_order_ids:
@@ -31,6 +33,8 @@ def reposition_idle_vehicles_to_nearest_pending_orders(orders: list[Order],
             rebalancing_schedule = \
                 [Waypoint(orders[order_id].origin, WaypointOp.REPOSITION, orders[order_id].id, rebalancing_route)]
             rebalancing_candidates.append([vehicle.id, rebalancing_schedule])
+
+    print(f"            +22 ({timer_end(t)})")
 
     # 3. Select suitable rebalancing candidates. Greedily from the one with the shortest travel time.
     rebalancing_candidates.sort(key=lambda e: e[1][0].route.duration_ms)
@@ -51,6 +55,8 @@ def reposition_idle_vehicles_to_nearest_pending_orders(orders: list[Order],
         rebalancing_vehicle = vehicles[vehicle_id]
         rebalancing_schedule = rebalancing_task[1]
         upd_vehicle_schedule_and_build_route(rebalancing_vehicle, rebalancing_schedule, router_func)
+
+    print(f"            +34 ({timer_end(t)})")
 
     if DEBUG_PRINT:
         print(f"            +Rebalancing vehicles: {len(selected_vehicle_ids)} ({timer_end(t)})")

@@ -16,12 +16,16 @@ def assign_orders_through_single_request_batch_assign(new_received_order_ids: li
     feasible_vehicle_order_pairs = compute_feasible_vehicle_order_pairs(new_received_order_ids, orders, vehicles,
                                                                         system_time_ms, router_func)
 
-    # 2. Compute the assignment policy, indicating which vehicle to pick which order.
+    # 2. Score the candidate vehicle_order_pairs.
+    score_vt_pairs_with_num_of_orders_and_increased_delay(
+        feasible_vehicle_order_pairs, orders, vehicles, system_time_ms)
+
+    # 3. Compute the assignment policy, indicating which vehicle to pick which order.
     selected_vehicle_order_pair_indices = ilp_assignment(feasible_vehicle_order_pairs,
                                                          new_received_order_ids, orders, vehicles)
     # selected_vehicle_order_pair_indices = greedy_assignment(feasible_vehicle_order_pairs)
 
-    # 3. Update the assigned vehicles' schedules and the assigned orders' statuses.
+    # 4. Update the assigned vehicles' schedules and the assigned orders' statuses.
     upd_schedule_for_vehicles_in_selected_vt_pairs(feasible_vehicle_order_pairs, selected_vehicle_order_pair_indices,
                                                    orders, vehicles, router_func)
     if DEBUG_PRINT:
@@ -47,21 +51,16 @@ def compute_feasible_vehicle_order_pairs(new_received_order_ids: list[int],
     feasible_vehicle_order_pairs = search_from_order(new_received_order_ids, orders, vehicles,
                                                      system_time_ms, router_func)
 
-    # 2. Recompute the schedule cost as the change relative to the vehicle's current working schedule.
-    for vo_pair in feasible_vehicle_order_pairs:
-        vehicle = vehicles[vo_pair.vehicle_id]
-        vo_pair.best_schedule_cost_ms -= compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms)
-        assert (vo_pair.best_schedule_cost_ms >= 0)
-
-    # 3. Add the basic schedule of each vehicle, which denotes the "empty assign" option in ILP.
+    # 2. Add the basic schedule of each vehicle, which denotes the "empty assign" option in ILP.
+    vo_pairs_append = feasible_vehicle_order_pairs.append
     for vehicle in vehicles:
         basic_vo_pair = SchedulingResult()
         basic_vo_pair.success = True
         basic_vo_pair.vehicle_id = vehicle.id
         basic_vo_pair.feasible_schedules.append(copy.deepcopy(vehicle.schedule))
         basic_vo_pair.best_schedule_idx = 0
-        basic_vo_pair.best_schedule_cost_ms = 0
-        feasible_vehicle_order_pairs.append(basic_vo_pair)
+        basic_vo_pair.best_schedule_cost_ms = compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms)
+        vo_pairs_append(basic_vo_pair)
 
     if DEBUG_PRINT:
         print(f"({timer_end(t)})")
@@ -77,6 +76,7 @@ def search_from_order(new_received_order_ids: list[int],
                       system_time_ms: int,
                       router_func: Router) -> list[SchedulingResult]:
     feasible_vehicle_order_pairs = []
+    vo_pairs_append = feasible_vehicle_order_pairs.append
     for order_id in new_received_order_ids:
         order = orders[order_id]
         for vehicle in vehicles:
@@ -87,7 +87,7 @@ def search_from_order(new_received_order_ids: list[int],
                 order, orders, vehicle, basic_schedules, system_time_ms, router_func)
             if scheduling_result_this_pair.success:
                 scheduling_result_this_pair.trip_ids = [order_id]
-                feasible_vehicle_order_pairs.append(scheduling_result_this_pair)
+                vo_pairs_append(scheduling_result_this_pair)
     return feasible_vehicle_order_pairs
 
 

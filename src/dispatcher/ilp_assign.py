@@ -17,50 +17,38 @@ def ilp_assignment(vehicle_trip_pairs: list[SchedulingResult],
     if len(vehicle_trip_pairs) == 0:
         return selected_vehicle_trip_pair_indices
 
-    # Get the coefficients for vehicle_trip_pair cost and order ignore penalty.
-    max_cost_ms = 1
-    for vt_pair in vehicle_trip_pairs:
-        if vt_pair.best_schedule_cost_ms > max_cost_ms:
-            max_cost_ms = vt_pair.best_schedule_cost_ms
-    max_cost_ms = int(max_cost_ms)
-    num_length = 0
-    while max_cost_ms:
-        max_cost_ms //= 10
-        num_length += 1
-    coe_vt_pair = 1.0 / pow(10, num_length)
-    ignore_order_penalty = pow(10, 3)
-
     try:
-        # Create a new model
+        # 1. Create a new model
         model = gp.Model("ilp")
         model.setParam("LogToConsole", 0)
 
-        # Create variables
+        # 2. Create variables
         var_vt_pair = []  # var_vt_pair[i] = 1 indicates selecting the i_th vehicle_trip_pair.
         for i in range(len(vehicle_trip_pairs)):
-            var_vt_pair.append(model.addVar(vtype=GRB.BINARY, name=f"var_vt_pair_{i}"))
+            var_vt_pair.append(model.addVar(vtype=GRB.BINARY))
         var_order = []    # var_order[j] = 0 indicates assigning the i_th order in the list.
         for j in range(len(considered_order_ids)):
-            var_order.append(model.addVar(vtype=GRB.BINARY, name=f"var_order_{j}"))
+            var_order.append(model.addVar(vtype=GRB.BINARY))
 
-        # Set objective: minimize Σ var_vt_pair[i] * cost(vt_pair) + Σ var_order[j] * penalty_ignore.
+        # 3. Set objective: maximize Σ var_vt_pair[i] * score(vt_pair).
         obj_expr = 0.0
         for i in range(len(vehicle_trip_pairs)):
-            obj_expr += var_vt_pair[i] * vehicle_trip_pairs[i].best_schedule_cost_ms * coe_vt_pair
-        for j in range(len(considered_order_ids)):
-            obj_expr += var_order[j] * 1.0 * ignore_order_penalty
-        model.setObjective(obj_expr, GRB.MINIMIZE)
+            obj_expr += var_vt_pair[i] * vehicle_trip_pairs[i].score
+        model.setObjective(obj_expr, GRB.MAXIMIZE)
 
-        # Add constraint 1: each vehicle can only be assigned at most one schedule (trip).
-        for vehicle in vehicles:  # Σ var_vt_pair[i] * Θ_vt(v) <= 1, ∀ v ∈ V (Θ_vt(v) = 1 if v is in vt).
+        # 4. Add constraints.
+        # Add constraint 1: each vehicle (v) can only be assigned at most one schedule (trip).
+        #     Σ var_vt_pair[i] * Θ_vt(v) = 1, ∀ v ∈ V (Θ_vt(v) = 1 if v is in vt).
+        for vehicle in vehicles:  #
             con_this_vehicle = 0.0
             for i in range(len(vehicle_trip_pairs)):
                 if vehicle_trip_pairs[i].vehicle_id == vehicle.id:
                     con_this_vehicle += var_vt_pair[i]
             model.addConstr(con_this_vehicle == 1)
 
-        # Add constraint 2: each request can only be assigned to at most one vehicle.
-        for j in range(len(considered_order_ids)):  # Σ var_vt_pair[i] * Θ_vt(order) + var_order[j] = 1.
+        # Add constraint 2: each order/request (r) can only be assigned to at most one vehicle.
+        #     Σ var_vt_pair[i] * Θ_vt(r) + var_order[j] = 1, ∀ r ∈ R. (Θ_vt(order) = 1 if r is in vt).
+        for j in range(len(considered_order_ids)):
             order = orders[considered_order_ids[j]]
             con_this_order = 0.0
             for i in range(len(vehicle_trip_pairs)):
@@ -75,10 +63,10 @@ def ilp_assignment(vehicle_trip_pairs: list[SchedulingResult],
                 if orders[considered_order_ids[j]].status == OrderStatus.PICKING:
                     model.addConstr(var_order[j] == 0)
 
-        # Optimize model.
+        # 5. Optimize model.
         model.optimize()
 
-        # Get the result.
+        # 6. Get the result.
         for i in range(len(vehicle_trip_pairs)):
             if var_vt_pair[i].getAttr(GRB.Attr.X) == 1:
                 selected_vehicle_trip_pair_indices.append(i)
@@ -89,6 +77,7 @@ def ilp_assignment(vehicle_trip_pairs: list[SchedulingResult],
                 if orders[considered_order_ids[j]].status == OrderStatus.PICKING:
                     assert (var_order[j].getAttr(GRB.Attr.X) == 0
                             and "Order that was picking is not assigned at this epoch!")
+
         # print(f"\n[GUROBI] Objective:{model.getObjective().getValue()}")
 
     except gp.GurobiError as e:

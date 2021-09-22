@@ -20,20 +20,20 @@ DISPATCHER = "SBA"        # 2 options: SBA, OSP
 REBALANCER = "NPO"        # 2 options: NONE, NPO
 
 # fleet_config:
-FLEET_SIZE = 200
+FLEET_SIZE = 2000
 VEH_CAPACITY = 6
 
 # request_config:
-REQUEST_DENSITY = 0.1    # <= 1
+REQUEST_DENSITY = 1    # <= 1
 MAX_PICKUP_WAIT_TIME_MIN = 5
 MAX_ONBOARD_DETOUR = 1.3   # < 2
 
 ##################################################################################
 # Simulation Config
 ##################################################################################
-SIMULATION_START_TIME = "2016-05-25 00:00:00"  # peak hour: 18:00:00 - 20:00:00
+SIMULATION_START_TIME = "2016-05-25 17:30:00"  # peak hour: 18:00:00 - 20:00:00
 CYCLE_S = 30
-WARMUP_DURATION_MIN = 30        # 30 min
-SIMULATION_DURATION_MIN = 60   # < 1371 min
-WINDDOWN_DURATION_MIN = 39      # 39 min
-DEBUG_PRINT = False
+WARMUP_DURATION_MIN = 0        # 30 min
+SIMULATION_DURATION_MIN = 1   # <= 1370 min
+WINDDOWN_DURATION_MIN = 0      # 39 min
+DEBUG_PRINT = True

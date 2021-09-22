@@ -8,21 +8,21 @@ from src.rebalancer.rebalancing_npo import *
 
 class Platform(object):
     def __init__(self, _router_func: Router, _demand_generator_func: DemandGenerator):
-        self.router = _router_func
-        self.demand_generator = _demand_generator_func
-        self.orders = []
         self.main_sim_start_time_stamp = get_time_stamp_datetime()
         self.main_sim_end_time_stamp = get_time_stamp_datetime()
+        self.router_func = _router_func
+        self.demand_generator = _demand_generator_func
+        self.orders = []
 
-        # Initialize the simulation times.
+        # Initialize the fleet.
         self.vehicles = []
-        num_of_stations = self.router.get_num_of_vehicle_stations()
+        num_of_stations = self.router_func.get_num_of_vehicle_stations()
         for i in range(FLEET_SIZE):
             station_idx = int(i * num_of_stations / FLEET_SIZE)
             vehicle = Vehicle()
             vehicle.id = i
             vehicle.capacity = VEH_CAPACITY
-            vehicle.pos = self.router.get_node_pos(self.router.get_vehicle_station_id(station_idx))
+            vehicle.pos = self.router_func.get_node_pos(self.router_func.get_vehicle_station_id(station_idx))
             self.vehicles.append(vehicle)
 
         # Initialize the simulation times.
@@ -37,10 +37,14 @@ class Platform(object):
             self.dispatcher = DispatcherMethod.SBA
         elif DISPATCHER == "OSP":
             self.dispatcher = DispatcherMethod.OSP
+        else:
+            assert (False and "[DEBUG] WRONG DISPATCHER SETTING! Please check the name of dispatcher in config!")
         if REBALANCER == "NONE":
             self.rebalancer = RebalancerMethod.NONE
         elif REBALANCER == "NPO":
             self.rebalancer = RebalancerMethod.NPO
+        else:
+            assert (False and "[DEBUG] WRONG REBALANCER SETTING! Please check the name of rebalancer in config!")
 
         print("[INFO] Platform is ready.")
 
@@ -93,17 +97,17 @@ class Platform(object):
         if self.main_sim_start_time_ms < self.system_time_ms <= self.main_sim_end_time_ms:
             if self.dispatcher == DispatcherMethod.SBA:
                 assign_orders_through_single_request_batch_assign(
-                    new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router)
+                    new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router_func)
             elif self.dispatcher == DispatcherMethod.OSP:
                 assign_orders_through_optimal_schedule_pool_assign(
-                    new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router)
+                    new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router_func)
         else:
             assign_orders_through_single_request_batch_assign(
-                new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router)
+                new_received_order_ids, self.orders, self.vehicles, self.system_time_ms, self.router_func)
 
         # 4. Reposition idle vehicles to high demand areas.
         if self.rebalancer == RebalancerMethod.NPO:
-            reposition_idle_vehicles_to_nearest_pending_orders(self.orders, self.vehicles, self.router)
+            reposition_idle_vehicles_to_nearest_pending_orders(self.orders, self.vehicles, self.router_func)
 
         # 5. Check the statuses of orders, to make sure that no one is assigned to multiple vehicles.
         if DEBUG_PRINT:
@@ -195,12 +199,12 @@ class Platform(object):
         for request in new_requests:
             order = Order()
             order.id = len(self.orders)
-            order.origin = self.router.get_node_pos(request.origin_node_id)
-            order.destination = self.router.get_node_pos(request.destination_node_id)
+            order.origin = self.router_func.get_node_pos(request.origin_node_id)
+            order.destination = self.router_func.get_node_pos(request.destination_node_id)
             order.request_time_ms = request.request_time_ms
             order.request_time_date = request.request_time_date
             order.shortest_travel_time_ms = \
-                self.router.get_route(order.origin, order.destination, RoutingType.TIME_ONLY).duration_ms
+                self.router_func.get_route(order.origin, order.destination, RoutingType.TIME_ONLY).duration_ms
             order.max_pickup_time_ms = \
                 order.request_time_ms \
                 + min(max_pickup_wait_time, order.shortest_travel_time_ms * (2 - MAX_ONBOARD_DETOUR))

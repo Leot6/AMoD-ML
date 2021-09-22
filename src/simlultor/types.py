@@ -1,6 +1,7 @@
 
 import copy
 from enum import Enum
+from numba import jit
 from src.simlultor.config import *
 
 
@@ -9,7 +10,7 @@ from src.simlultor.config import *
 ##################################################################################
 class Pos(object):
     def __init__(self):
-        self.node_id = 1
+        self.node_id = 1  # Note: the node id starts from 1, for the provided manhattan data.
         self.lon = 0.0
         self.lat = 0.0
 
@@ -68,7 +69,7 @@ def order_status_to_string(status: OrderStatus) -> str:
 
 class Order(object):
     def __init__(self):
-        self.id = 0
+        self.id = 0  # Note: the order id starts from 0, equaling to its idx.
         self.origin = Pos()
         self.destination = Pos()
         self.status = OrderStatus.PENDING
@@ -116,7 +117,7 @@ def vehicle_status_to_string(status: VehicleStatus) -> str:
 
 class Vehicle(object):
     def __init__(self):
-        self.id = 0
+        self.id = 0  # Note: the vehicle id starts from 0, equaling to its idx.
         self.pos = Pos()
         self.status = VehicleStatus.IDLE
         self.schedule_has_been_updated_at_current_epoch = False  # False at the start of each epoch,

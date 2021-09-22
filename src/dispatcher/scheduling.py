@@ -11,6 +11,7 @@ class SchedulingResult(object):
         self.feasible_schedules = []
         self.best_schedule_idx = 0
         self.best_schedule_cost_ms = np.inf
+        self.score = -np.inf
 
 
 def compute_schedule_of_inserting_order_to_vehicle(order: Order,
@@ -56,21 +57,21 @@ def generator_schedule_from_sub_schedule(order: Order,
     idx = 0
     while True:
         if idx == pickup_idx:
-            route1 = router_func.get_route(copy.deepcopy(pre_pos), order.origin, RoutingType.TIME_ONLY)
-            new_schedule.append(Waypoint(order.origin, WaypointOp.PICKUP, order.id, route1))
+            route = router_func.get_route(copy.deepcopy(pre_pos), order.origin, RoutingType.TIME_ONLY)
+            new_schedule.append(Waypoint(order.origin, WaypointOp.PICKUP, order.id, route))
             pre_pos = order.origin
         if idx == dropoff_idx:
-            route2 = router_func.get_route(copy.deepcopy(pre_pos), order.destination, RoutingType.TIME_ONLY)
-            new_schedule.append(Waypoint(order.destination, WaypointOp.DROPOFF, order.id, route2))
+            route = router_func.get_route(copy.deepcopy(pre_pos), order.destination, RoutingType.TIME_ONLY)
+            new_schedule.append(Waypoint(order.destination, WaypointOp.DROPOFF, order.id, route))
             pre_pos = order.destination
         if idx >= len(sub_schedule):
             assert (len(new_schedule) != 0)
             return new_schedule
-        route3 = router_func.get_route(copy.deepcopy(pre_pos), sub_schedule[idx].pos, RoutingType.TIME_ONLY)
+        route = router_func.get_route(copy.deepcopy(pre_pos), sub_schedule[idx].pos, RoutingType.TIME_ONLY)
         new_schedule.append(Waypoint(sub_schedule[idx].pos,
                                      sub_schedule[idx].op,
                                      sub_schedule[idx].order_id,
-                                     route3))
+                                     route))
         pre_pos = sub_schedule[idx].pos
         idx += 1
 
@@ -213,3 +214,45 @@ def compute_schedule_cost(schedule: list[Waypoint], orders: list[Order], vehicle
                     (orders[wp.order_id].request_time_ms + orders[wp.order_id].shortest_travel_time_ms) >= 0)
 
     return cost_total_delay_ms
+
+
+def score_vt_pair_with_increased_delay(vehicle_trip_pair: SchedulingResult,
+                                       orders: list[Order],
+                                       vehicles: list[Vehicle],
+                                       system_time_ms: int,
+                                       is_reoptimization: bool = False):
+    vehicle = vehicles[vehicle_trip_pair.vehicle_id]
+    vehicle_trip_pair.score = compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms) \
+                              - vehicle_trip_pair.best_schedule_cost_ms
+    if not is_reoptimization:
+        assert (vehicle_trip_pair.score <= 0)
+    else:
+        if len(vehicle_trip_pair.trip_ids) == 0:
+            deviation_due_to_data_structure = 5
+            assert (vehicle_trip_pair.score + deviation_due_to_data_structure * 10 >= 0)
+
+
+def score_vt_pairs_with_num_of_orders_and_increased_delay(vehicle_trip_pairs: list[SchedulingResult],
+                                                          orders: list[Order],
+                                                          vehicles: list[Vehicle],
+                                                          system_time_ms: int,
+                                                          is_reoptimization: bool = False):
+    # 1. Score the vt_pairs with the increased delay cause by inserting new orders.
+    for vt_pair in vehicle_trip_pairs:
+        score_vt_pair_with_increased_delay(vt_pair, orders, vehicles, system_time_ms, is_reoptimization)
+
+    # 2. Get the coefficients for NumOfOrders and IncreasedDelay.
+    max_score_abs = 1
+    for vt_pair in vehicle_trip_pairs:
+        if abs(vt_pair.score) > max_score_abs:
+            max_score_abs = abs(vt_pair.score)
+    max_score_abs = int(max_score_abs)
+    num_length = 0
+    while max_score_abs:
+        max_score_abs //= 10
+        num_length += 1
+    reward_for_serving_an_order = pow(10, num_length)
+
+    # 3. Re-score the vt_pairs with NumOfOrders and IncreasedDelay.
+    for vt_pair in vehicle_trip_pairs:
+        vt_pair.score = reward_for_serving_an_order * len(vt_pair.trip_ids) + vt_pair.score / 1e3

@@ -12,7 +12,7 @@ def assign_orders_through_optimal_schedule_pool_assign(new_received_order_ids: l
     # Some general settings.
     #        Always turned on. Only turned off to show that without re-optimization (re-assigning picking orders),
     #        multi-to-one match only outperforms a little than one-to-one match.
-    enable_reoptimization = True
+    enable_reoptimization = False
     #        A cutoff is set to avoid some potential bugs making the algorithm spends too much time on some dead loop.
     #        30 s is considered as a sufficient large value. If this cutoff time is set too small, it may happens that
     #        there are not enough feasible vehicle_trip_pairs found to support ensure_assigning_orders_that_are_picking.
@@ -39,22 +39,26 @@ def assign_orders_through_optimal_schedule_pool_assign(new_received_order_ids: l
         compute_feasible_vehicle_trip_pairs(considered_order_ids, orders, vehicles, system_time_ms, router_func,
                                             cutoff_time_for_a_size_k_trip_search_per_vehicle_ms, enable_reoptimization)
 
-    # 3. Compute the assignment policy, indicating which vehicle to pick which trip.
+    # 3. Score the candidate vehicle_trip_pairs.
+    score_vt_pairs_with_num_of_orders_and_increased_delay(
+        feasible_vehicle_trip_pairs, orders, vehicles, system_time_ms, enable_reoptimization)
+
+    # 4. Compute the assignment policy, indicating which vehicle to pick which trip.
     selected_vehicle_trip_pair_indices = ilp_assignment(feasible_vehicle_trip_pairs,
                                                         considered_order_ids, orders, vehicles,
                                                         ensure_ilp_assigning_orders_that_are_picking)
     # selected_vehicle_trip_pair_indices = greedy_assignment(feasible_vehicle_trip_pairs)
 
-    # 4. Update the assigned vehicles' schedules and the considered orders' statuses.
+    # 5. Update the assigned vehicles' schedules and the considered orders' statuses.
     for order_id in considered_order_ids:
         orders[order_id].status == OrderStatus.PENDING
     upd_schedule_for_vehicles_in_selected_vt_pairs(feasible_vehicle_trip_pairs, selected_vehicle_trip_pair_indices,
                                                    orders, vehicles, router_func)
 
-    # 5. Update the schedule of vehicles, of which the assigned (picking) orders are reassigned to other vehicles.
-    #    (This is only needed when using GreedyAssignment.)
-    if enable_reoptimization:
-        upd_schedule_for_vehicles_having_orders_removed(vehicles, router_func)
+    # # 6. Update the schedule of vehicles, of which the assigned (picking) orders are reassigned to other vehicles.
+    # #    (This is only needed when using GreedyAssignment.)
+    # if enable_reoptimization:
+    #     upd_schedule_for_vehicles_having_orders_removed(vehicles, router_func)
 
     if DEBUG_PRINT:
         num_of_assigned_orders = 0
@@ -120,30 +124,16 @@ def compute_feasible_trips_for_one_vehicle(considered_order_ids: list[int],
         feasible_trips_for_this_vehicle.extend(feasible_trips_of_size_k)
         feasible_trips_of_size_k_minus_1 = feasible_trips_of_size_k
 
-    # 4. Recompute the schedule cost as the change relative to the vehicle's current working schedule.
-    vehicle_current_working_schedule_cost_ms = compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms)
-    for vt_pair in feasible_trips_for_this_vehicle:
-        vt_pair.best_schedule_cost_ms -= vehicle_current_working_schedule_cost_ms
-        if not enable_reoptimization:
-            assert (vt_pair.best_schedule_cost_ms >= 0)
-
-    # 5. Add the basic schedule of the vehicle, which denotes the "empty assign" option in ILP.
+    # 4. Add the basic schedule of the vehicle, which denotes the "empty assign" option in ILP.
     basic_vt_pair = SchedulingResult()
     basic_vt_pair.success = True
     basic_vt_pair.vehicle_id = vehicle.id
     basic_vt_pair.feasible_schedules = basic_schedules
     basic_vt_pair.best_schedule_idx = 0
-    if not enable_reoptimization:
-        basic_vt_pair.best_schedule_cost_ms = 0
-    else:
-        basic_vt_pair.best_schedule_cost_ms = \
-            compute_schedule_cost(basic_schedules[0], orders, vehicle, system_time_ms) \
-            - vehicle_current_working_schedule_cost_ms
-        deviation_due_to_data_structure = 5
-        assert (basic_vt_pair.best_schedule_cost_ms <= deviation_due_to_data_structure * 10)
+    basic_vt_pair.best_schedule_cost_ms = compute_schedule_cost(basic_schedules[0], orders, vehicle, system_time_ms)
     feasible_trips_for_this_vehicle.append(basic_vt_pair)
 
-    # 6. Add the current working schedule, to have a double ensure about ensure_ilp_assigning_orders_that_are_picking.
+    # 5. Add the current working schedule, to have a double ensure about ensure_ilp_assigning_orders_that_are_picking.
     if enable_reoptimization:
         current_working_vt_pair = SchedulingResult()
         current_working_vt_pair.success = True
@@ -153,7 +143,8 @@ def compute_feasible_trips_for_one_vehicle(considered_order_ids: list[int],
         current_working_vt_pair.vehicle_id = vehicle.id
         current_working_vt_pair.feasible_schedules.append(copy.deepcopy(vehicle.schedule))
         current_working_vt_pair.best_schedule_idx = 0
-        current_working_vt_pair.best_schedule_cost_ms = 0
+        current_working_vt_pair.best_schedule_cost_ms = \
+            compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms)
         feasible_trips_for_this_vehicle.append(current_working_vt_pair)
 
     return feasible_trips_for_this_vehicle
