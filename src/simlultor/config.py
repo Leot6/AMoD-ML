@@ -21,7 +21,7 @@ REBALANCER = "NPO"        # 2 options: NONE, NPO
 
 # fleet_config:
 FLEET_SIZE = 2000
-VEH_CAPACITY = 6
+VEH_CAPACITY = 4
 
 # request_config:
 REQUEST_DENSITY = 1    # <= 1
@@ -33,7 +33,7 @@ MAX_ONBOARD_DETOUR = 1.3   # < 2
 ##################################################################################
 SIMULATION_START_TIME = "2016-05-25 17:30:00"  # peak hour: 18:00:00 - 20:00:00
 CYCLE_S = 30
-WARMUP_DURATION_MIN = 0        # 30 min
-SIMULATION_DURATION_MIN = 1   # <= 1370 min
-WINDDOWN_DURATION_MIN = 0      # 39 min
+WARMUP_DURATION_MIN = 30        # 30 min
+SIMULATION_DURATION_MIN = 120   # <= 1370 min
+WINDDOWN_DURATION_MIN = 39      # 39 min
 DEBUG_PRINT = True

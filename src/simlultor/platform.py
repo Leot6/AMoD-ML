@@ -193,7 +193,7 @@ class Platform(object):
 
         # Get order requests generated during the past cycle.
         new_requests = self.demand_generator.get_requests(self.system_time_ms)
-        max_pickup_wait_time = MAX_PICKUP_WAIT_TIME_MIN * 60 * 1000
+        max_pickup_wait_time_ms = MAX_PICKUP_WAIT_TIME_MIN * 60 * 1000
 
         new_received_order_ids = []
         for request in new_requests:
@@ -207,10 +207,10 @@ class Platform(object):
                 self.router_func.get_route(order.origin, order.destination, RoutingType.TIME_ONLY).duration_ms
             order.max_pickup_time_ms = \
                 order.request_time_ms \
-                + min(max_pickup_wait_time, order.shortest_travel_time_ms * (2 - MAX_ONBOARD_DETOUR))
+                + min(max_pickup_wait_time_ms, order.shortest_travel_time_ms * (2 - MAX_ONBOARD_DETOUR))
             order.max_dropoff_time_ms = \
                 order.request_time_ms + order.shortest_travel_time_ms \
-                + min(max_pickup_wait_time * 2, order.max_pickup_time_ms - order.request_time_ms
+                + min(max_pickup_wait_time_ms * 2, order.max_pickup_time_ms - order.request_time_ms
                       + order.shortest_travel_time_ms * (MAX_ONBOARD_DETOUR - 1))
             new_received_order_ids.append(len(self.orders))
             assert (order.status == OrderStatus.PENDING)

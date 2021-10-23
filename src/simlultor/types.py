@@ -1,7 +1,6 @@
 
 import copy
 from enum import Enum
-from numba import jit
 from src.simlultor.config import *
 
 

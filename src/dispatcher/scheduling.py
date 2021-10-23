@@ -33,6 +33,11 @@ def compute_schedule_of_inserting_order_to_vehicle(order: Order,
                 feasible_this_schedule, violation_type = validate_schedule(
                     new_schedule, pickup_idx, dropoff_idx, order, orders, vehicle, system_time_ms, router_func)
                 if feasible_this_schedule:
+
+                    if len(new_schedule) > vehicle.capacity * 2:
+                        print(f"schedule length is !!{len(new_schedule)}!! large than 12")
+                        print_schedule(vehicle, new_schedule)
+
                     new_schedule_cost_ms = compute_schedule_cost(new_schedule, orders, vehicle, system_time_ms)
                     if new_schedule_cost_ms < scheduling_result.best_schedule_cost_ms:
                         scheduling_result.best_schedule_idx = len(scheduling_result.feasible_schedules)
@@ -86,8 +91,7 @@ def validate_schedule(schedule: list[Waypoint],
                       router_func: Router) -> tuple[bool, int]:
     load = vehicle.load
     accumulated_time_ms = system_time_ms + vehicle.step_to_pos.duration_ms
-    idx = 0
-    for wp in schedule:
+    for idx, wp in enumerate(schedule):
         accumulated_time_ms += wp.route.duration_ms
         if idx >= pickup_idx:
             if wp.op == WaypointOp.PICKUP and accumulated_time_ms > orders[wp.order_id].max_pickup_time_ms:
@@ -113,7 +117,6 @@ def validate_schedule(schedule: list[Waypoint],
                 return False, 0
         elif wp.op == WaypointOp.DROPOFF:
             load -= 1
-        idx += 1
 
     return True, -1
 
@@ -237,7 +240,7 @@ def score_vt_pairs_with_num_of_orders_and_increased_delay(vehicle_trip_pairs: li
                                                           vehicles: list[Vehicle],
                                                           system_time_ms: int,
                                                           is_reoptimization: bool = False):
-    # 1. Score the vt_pairs with the increased delay cause by inserting new orders.
+    # 1. Score the vt_pairs with the increased delays caused by inserting new orders.
     for vt_pair in vehicle_trip_pairs:
         score_vt_pair_with_increased_delay(vt_pair, orders, vehicles, system_time_ms, is_reoptimization)
 
