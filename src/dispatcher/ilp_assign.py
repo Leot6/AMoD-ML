@@ -81,7 +81,7 @@ def ilp_assignment(vehicle_trip_pairs: list[SchedulingResult],
         # print(f"\n[GUROBI] Objective:{model.getObjective().getValue()}")
 
     except gp.GurobiError as e:
-        print(f"\n[GUROBI] Error code = {str(e.errno)} ({str(e)}).")
+        print(f"\n[GUROBI] Error code = {str(e.message)} ({str(e)}).")
     except AttributeError:
         print("Encountered an attribute error")
 

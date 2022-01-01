@@ -2,12 +2,14 @@
 import time
 import pickle
 import shutil
+import os
 import pandas as pd
 from dateutil.parser import parse
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
-from src.simlultor.types import *
+from src.simulator.types import *
+from src.simulator.config import *
 
 
 # def convert_time_date_to_seconds(time_date):
@@ -25,7 +27,7 @@ def get_time_stamp_datetime() -> datetime:
 
 
 def get_runtime_ms_from_t_to_now(t: datetime) -> float:
-    return (datetime.now() - t).microseconds / 1000.0
+    return (datetime.now() - t).total_seconds() * 1000.0
 
 
 def timer_start() -> datetime:
@@ -33,8 +35,8 @@ def timer_start() -> datetime:
 
 
 def timer_end(t: datetime) -> str:
-    runtime_ms = (datetime.now() - t).microseconds / 1000.0
-    return f"{runtime_ms / 1000.0:.3f}s"
+    runtime_sec = (datetime.now() - t).total_seconds()
+    return f"{runtime_sec:.3f}s"
 
 
 def check_file_existence(path_to_file: str):

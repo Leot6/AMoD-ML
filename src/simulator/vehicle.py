@@ -1,5 +1,5 @@
 
-from src.simlultor.types import *
+from src.simulator.types import *
 
 
 def truncate_step_by_time(step: Step, time_ms: int):

@@ -1,7 +1,7 @@
 
 import copy
 from enum import Enum
-from src.simlultor.config import *
+from src.simulator.config import *
 
 
 ##################################################################################

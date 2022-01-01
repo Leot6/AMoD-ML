@@ -1,6 +1,6 @@
 import numpy as np
 from src.utility.utility_functions import *
-from src.simlultor.router import *
+from src.simulator.router import *
 
 
 class SchedulingResult(object):
@@ -33,11 +33,6 @@ def compute_schedule_of_inserting_order_to_vehicle(order: Order,
                 feasible_this_schedule, violation_type = validate_schedule(
                     new_schedule, pickup_idx, dropoff_idx, order, orders, vehicle, system_time_ms, router_func)
                 if feasible_this_schedule:
-
-                    if len(new_schedule) > vehicle.capacity * 2:
-                        print(f"schedule length is !!{len(new_schedule)}!! large than 12")
-                        print_schedule(vehicle, new_schedule)
-
                     new_schedule_cost_ms = compute_schedule_cost(new_schedule, orders, vehicle, system_time_ms)
                     if new_schedule_cost_ms < scheduling_result.best_schedule_cost_ms:
                         scheduling_result.best_schedule_idx = len(scheduling_result.feasible_schedules)
@@ -219,43 +214,23 @@ def compute_schedule_cost(schedule: list[Waypoint], orders: list[Order], vehicle
     return cost_total_delay_ms
 
 
-def score_vt_pair_with_increased_delay(vehicle_trip_pair: SchedulingResult,
-                                       orders: list[Order],
-                                       vehicles: list[Vehicle],
-                                       system_time_ms: int,
-                                       is_reoptimization: bool = False):
-    vehicle = vehicles[vehicle_trip_pair.vehicle_id]
-    vehicle_trip_pair.score = compute_schedule_cost(vehicle.schedule, orders, vehicle, system_time_ms) \
-                              - vehicle_trip_pair.best_schedule_cost_ms
-    if not is_reoptimization:
-        assert (vehicle_trip_pair.score <= 0)
-    else:
-        if len(vehicle_trip_pair.trip_ids) == 0:
-            deviation_due_to_data_structure = 5
-            assert (vehicle_trip_pair.score + deviation_due_to_data_structure * 10 >= 0)
+def score_vt_pairs_with_num_of_orders_and_schedule_cost(vehicle_trip_pairs: list[SchedulingResult],
+                                                        orders: list[Order],
+                                                        vehicles: list[Vehicle],
+                                                        system_time_ms: int):
 
-
-def score_vt_pairs_with_num_of_orders_and_increased_delay(vehicle_trip_pairs: list[SchedulingResult],
-                                                          orders: list[Order],
-                                                          vehicles: list[Vehicle],
-                                                          system_time_ms: int,
-                                                          is_reoptimization: bool = False):
-    # 1. Score the vt_pairs with the increased delays caused by inserting new orders.
+    # 1. Get the coefficients for NumOfOrders and ScheduleCost.
+    max_schedule_cost = 1
     for vt_pair in vehicle_trip_pairs:
-        score_vt_pair_with_increased_delay(vt_pair, orders, vehicles, system_time_ms, is_reoptimization)
-
-    # 2. Get the coefficients for NumOfOrders and IncreasedDelay.
-    max_score_abs = 1
-    for vt_pair in vehicle_trip_pairs:
-        if abs(vt_pair.score) > max_score_abs:
-            max_score_abs = abs(vt_pair.score)
-    max_score_abs = int(max_score_abs)
+        if vt_pair.best_schedule_cost_ms > max_schedule_cost:
+            max_schedule_cost = vt_pair.best_schedule_cost_ms
+    max_schedule_cost = int(max_schedule_cost)
     num_length = 0
-    while max_score_abs:
-        max_score_abs //= 10
+    while max_schedule_cost:
+        max_schedule_cost //= 10
         num_length += 1
     reward_for_serving_an_order = pow(10, num_length)
 
-    # 3. Re-score the vt_pairs with NumOfOrders and IncreasedDelay.
+    # 2. Score the vt_pairs with NumOfOrders and ScheduleCost.
     for vt_pair in vehicle_trip_pairs:
-        vt_pair.score = reward_for_serving_an_order * len(vt_pair.trip_ids) + vt_pair.score / 1e3
+        vt_pair.score = reward_for_serving_an_order * len(vt_pair.trip_ids) - vt_pair.best_schedule_cost_ms / 1e3

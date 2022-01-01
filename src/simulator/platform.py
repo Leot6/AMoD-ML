@@ -1,6 +1,6 @@
 
-from src.simlultor.vehicle import *
-from src.simlultor.demand_generator import *
+from src.simulator.vehicle import *
+from src.simulator.demand_generator import *
 from src.dispatcher.dispatcher_sba import *
 from src.dispatcher.dispatcher_osp import *
 from src.rebalancer.rebalancing_npo import *
@@ -74,11 +74,11 @@ class Platform(object):
             else:
                 progress_phase = "Cool Down"
             print(f"[DEBUG] T = {round(self.system_time_ms / 1000)}s: "
-                  f"Epoch {round((self.system_time_ms / self.cycle_ms) + 1)}"
+                  f"Epoch {round(self.system_time_ms / self.cycle_ms)}"
                   f"/{round(self.system_shutdown_time_ms / self.cycle_ms)} is running. [{progress_phase}]")
 
         # 1. Update the vehicles' positions and the orders' statuses. (system_time_ms_ is updated at this step.)
-        #    Advance the vehicles by the whole cycle。
+        #    Advance the vehicles by the whole cycle.
         self.advance_vehicles(self.cycle_ms)
         #    Reject the long waited orders.
         for order in self.orders:
@@ -113,7 +113,7 @@ class Platform(object):
         if DEBUG_PRINT:
             num_of_total_orders = len(self.orders)
             num_of_completed_orders = num_of_onboard_orders = num_of_picking_orders \
-                = num_of_pending_orders = num_of_walkaway_orders= 0
+                = num_of_pending_orders = num_of_walkaway_orders = 0
             for order in self.orders:
                 if order.status == OrderStatus.COMPLETE:
                     num_of_completed_orders += 1
@@ -243,9 +243,6 @@ class Platform(object):
         main_sim_runtime_formatted = str(timedelta(seconds=int(main_sim_runtime_s)))
 
         # Get some system configurations
-        request_number = PATH_TO_TAXI_DATA[len(PATH_TO_TAXI_DATA)-12: len(PATH_TO_TAXI_DATA)-7]
-        if request_number[:1] == "-":
-            request_number = request_number[1:]
         sim_start_time_date = SIMULATION_START_TIME
         sim_end_time_date = str(parse(SIMULATION_START_TIME) + timedelta(milliseconds=self.system_shutdown_time_ms))
         main_sim_start_date = str(parse(SIMULATION_START_TIME) + timedelta(milliseconds=self.main_sim_start_time_ms))
@@ -267,7 +264,7 @@ class Platform(object):
         print(f"  - Fleet Config: size = {FLEET_SIZE}, capacity = {VEH_CAPACITY}. "
               f"({int(WARMUP_DURATION_MIN * 60 / CYCLE_S)} + {num_of_main_epochs} + "
               f"{int(WINDDOWN_DURATION_MIN * 60 / CYCLE_S)} = {num_of_epochs} epochs).")
-        print(f"  - Order Config: density = {REQUEST_DENSITY} ({request_number}), "
+        print(f"  - Order Config: density = {REQUEST_DENSITY} ({DATA_DATE}), "
               f"max_wait = {MAX_PICKUP_WAIT_TIME_MIN * 60} s. (Δt = {CYCLE_S} s).")
         print(f"  - Dispatch Config: dispatcher = {DISPATCHER}, rebalancer = {REBALANCER}.")
 

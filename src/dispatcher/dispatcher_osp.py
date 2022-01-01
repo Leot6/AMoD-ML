@@ -12,7 +12,7 @@ def assign_orders_through_optimal_schedule_pool_assign(new_received_order_ids: l
     # Some general settings.
     #        Always turned on. Only turned off to show that without re-optimization (re-assigning picking orders),
     #        multi-to-one match only outperforms a little than one-to-one match.
-    enable_reoptimization = False
+    enable_reoptimization = True
     #        A cutoff is set to avoid some potential bugs making the algorithm spends too much time on some dead loop.
     #        30 s is considered as a sufficient large value. If this cutoff time is set too small, it may happens that
     #        there are not enough feasible vehicle_trip_pairs found to support ensure_assigning_orders_that_are_picking.
@@ -40,8 +40,7 @@ def assign_orders_through_optimal_schedule_pool_assign(new_received_order_ids: l
                                             cutoff_time_for_a_size_k_trip_search_per_vehicle_ms, enable_reoptimization)
 
     # 3. Score the candidate vehicle_trip_pairs.
-    score_vt_pairs_with_num_of_orders_and_increased_delay(
-        feasible_vehicle_trip_pairs, orders, vehicles, system_time_ms, enable_reoptimization)
+    score_vt_pairs_with_num_of_orders_and_schedule_cost(feasible_vehicle_trip_pairs, orders, vehicles, system_time_ms)
 
     # 4. Compute the assignment policy, indicating which vehicle to pick which trip.
     selected_vehicle_trip_pair_indices = ilp_assignment(feasible_vehicle_trip_pairs,
@@ -180,6 +179,7 @@ def compute_size_k_trips_for_one_vehicle(considered_order_ids: list[int],
                                          cut_off_time_for_search_ms: int) -> list[SchedulingResult]:
     feasible_trips_of_size_k = []
     k = len(feasible_trips_of_size_k_minus_1[0].trip_ids) + 1
+
     search_start_time_datetime = get_time_stamp_datetime()
     searched_trip_ids_of_size_k = []
     feasible_trip_ids_of_size_k_minus_1 = [vt_pair.trip_ids for vt_pair in feasible_trips_of_size_k_minus_1]
@@ -201,8 +201,11 @@ def compute_size_k_trips_for_one_vehicle(considered_order_ids: list[int],
                 # Check if any sub-trip is not feasible.
                 flag_at_least_one_subtrip_is_not_feasible = False
                 for idx in range(k):
-                    sub_trip_ids = new_trip_k_ids
+                    # sub_trip_ids = new_trip_k_ids
+                    # sub_trip_ids.pop(idx)
+                    sub_trip_ids = copy.deepcopy(new_trip_k_ids)
                     sub_trip_ids.pop(idx)
+                    assert (len(sub_trip_ids) == k - 1)
                     if sub_trip_ids not in feasible_trip_ids_of_size_k_minus_1:
                         flag_at_least_one_subtrip_is_not_feasible = True
                         break

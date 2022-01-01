@@ -1,7 +1,6 @@
-import src.simlultor.router
-from src.simlultor.platform import *
-from src.simlultor.demand_generator import *
-from src.simlultor.router import *
+from src.simulator.platform import *
+from src.simulator.demand_generator import *
+from src.simulator.router import *
 
 
 if __name__ == '__main__':

@@ -23,6 +23,13 @@ def load_network_node_from_csv_file_and_save_it_to_pickle_file(path_to_csv: str)
         pickle.dump(all_nodes, f)
 
 
+def load_path_table_from_csv_file_and_save_it_to_pickle(path_to_csv: str):
+    path_table_csv = pd.read_csv(path_to_csv, index_col=0).values
+    path_to_pickle = path_to_csv.replace(".csv", ".pickle")
+    with open(path_to_pickle, 'wb') as f:
+        pickle.dump(path_table_csv, f)
+
+
 def load_request_data_from_csv_file_and_save_it_to_pickle_file(path_to_csv: str):
     all_requests = []
     requests_csv = pd.read_csv(path_to_csv)
@@ -44,7 +51,16 @@ def load_request_data_from_csv_file_and_save_it_to_pickle_file(path_to_csv: str)
 if __name__ == '__main__':
     vehicle_stations = f"{ROOT_PATH}/datalog-gitignore/map-data/stations-101.csv"
     network_nodes = f"{ROOT_PATH}/datalog-gitignore/map-data/nodes.csv"
-    taxi_data = f"{ROOT_PATH}/datalog-gitignore/taxi-data/manhattan-taxi-20160525-400k.csv"
+    mean_table = f"{ROOT_PATH}/datalog-gitignore/map-data/mean-table.csv"
+    dist_table = f"{ROOT_PATH}/datalog-gitignore/map-data/dist-table.csv"
+    path_table = f"{ROOT_PATH}/datalog-gitignore/map-data/path-table.csv"
 
-    load_network_node_from_csv_file_and_save_it_to_pickle_file(network_nodes)
-    # load_request_data_from_csv_file_and_save_it_to_pickle_file(taxi_data)
+    for node_file in [vehicle_stations, network_nodes]:
+        load_network_node_from_csv_file_and_save_it_to_pickle_file(node_file)
+
+    for table_file in [mean_table, dist_table, path_table]:
+        load_path_table_from_csv_file_and_save_it_to_pickle(table_file)
+
+    for day in ["03", "04", "05", "10", "11", "12", "17", "19", "24", "25", "26"]:
+        taxi_data = f"{ROOT_PATH}/datalog-gitignore/taxi-data/manhattan-taxi-201605{day}-peak.csv"
+        load_request_data_from_csv_file_and_save_it_to_pickle_file(taxi_data)
